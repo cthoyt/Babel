@@ -8,6 +8,7 @@ from src.babel_utils import read_identifier_file,glom,write_compendium
 import os
 import json
 import gzip
+import umls_downloader
 
 import logging
 from src.util import LoggingUtil
@@ -85,14 +86,20 @@ def write_omim_ids(infile,outfile):
             if chunks[1] == 'gene':
                 outf.write(f'{OMIM}:{chunks[0]}\n')
 
-def write_umls_ids(outfile):
+def write_umls_ids(outfile, version=None, api_key=None):
     """Find the UMLS entities that are genes.  This is complicated by the fact that UMLS  semantic type doesn't
     have a corresponding GENE class.  It has something (A1.2.3.5) which includes genes, but also includes genomes and
     variants and gene properties and gene families.  We can do some filtering by looking around in the MRCONSO as well
     as the MRSTY. In particular, if the term maps to an OMIM that has a period in it, then it's a variant. Good job
     UMLS, it's not like genes are central to biology or anything.
     Also, remove anything that in the label identifies itself as an Allele or Mutation
-    It's possible in the future that we'd like to try to assign better classes to some of these things."""
+    It's possible in the future that we'd like to try to assign better classes to some of these things.
+    
+    
+    :param version: The version of UMLS to download. If none given, uses :mod:`bioversions` to look up the latest
+    :param api_key: The UMLS API key. See :mod:`umls_downloader` and https://github.com/cthoyt/umls_downloader for
+        instructions on how to get an API key. If not set, uses :mod:`pystow` to look up appropriate configuration.
+    """
 
 
     #Do I want this?  There are a bunch of things under here that we probably don't want.
@@ -109,7 +116,7 @@ def write_umls_ids(outfile):
                 umls_keepers.add(x[0])
     umls_keepers.difference_update(blacklist)
     #Now filter out OMIM variants
-    mrconso = os.path.join('input_data', 'private', 'MRCONSO.RRF')
+    mrconso = umls_downloader.download_umls(version=version, api_key=api_key)
     with open(mrconso,'r') as inf:
         for line in inf:
             x = line.strip().split('|')
